@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NJ Ordinance Sub-Topic Viewer (Prototype)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:    #0f2744;
+    --blue:    #1a4a8a;
+    --sky:     #2563a8;
+    --accent:  #0ea5e9;
+    --bg:      #f4f6f9;
+    --surface: #ffffff;
+    --border:  #dde3ed;
+    --text:    #1a2535;
+    --muted:   #64748b;
+    --green:   #0d9488;
+    --green-bg:#f0fdf4;
+    --green-border:#bbf7d0;
+    --orange:  #d97706;
+    --orange-bg:#fffbeb;
+    --orange-border:#fde68a;
+    --purple:  #7c3aed;
+    --purple-bg:#f5f3ff;
+    --purple-border:#ddd6fe;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Source Serif 4', Georgia, serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 60%, var(--sky) 100%);
+    padding: 28px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 24px rgba(15,39,68,0.18);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header .wave { font-size: 28px; }
+  header h1 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: white; }
+  header p { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 2px; font-style: italic; }
+  .header-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: white; font-size: 12px; font-weight: 600;
+    padding: 6px 14px; border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .layout { display: flex; flex: 1; }
+  aside {
+    width: 280px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 20px;
+    display: flex; flex-direction: column; gap: 20px;
+    position: sticky; top: 80px;
+    height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+  .field-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  select {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'Source Serif 4', serif; font-size: 14px;
+    color: var(--text); background: var(--bg); cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    transition: border-color 0.15s;
+  }
+  select:focus { outline: none; border-color: var(--sky); box-shadow: 0 0 0 3px rgba(37,99,168,0.12); }
+
+  .topic-buttons { display: flex; flex-direction: column; gap: 8px; }
+  .topic-btn {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'Source Serif 4', serif; font-size: 14px;
+    color: var(--muted); background: var(--bg); cursor: pointer;
+    text-align: left; transition: all 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .topic-btn:hover { border-color: var(--sky); color: var(--sky); background: #eff6ff; }
+  .topic-btn.active-flood    { border-color: var(--sky);    color: var(--sky);    background: #eff6ff; font-weight: 600; }
+  .topic-btn.active-wind     { border-color: var(--orange); color: var(--orange); background: var(--orange-bg); font-weight: 600; }
+  .topic-btn.active-wildfire { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); font-weight: 600; }
+  .topic-icon { font-size: 16px; }
+
+  main { flex: 1; padding: 32px 40px; overflow-y: auto; max-width: 900px; }
+  .town-heading { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+  .town-meta { font-size: 13px; color: var(--muted); margin-bottom: 8px; font-style: italic; }
+
+  .topic-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600;
+    padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .topic-badge.flood    { background: var(--green-bg);  border: 1px solid var(--green-border);  color: var(--green); }
+  .topic-badge.wind     { background: var(--orange-bg); border: 1px solid var(--orange-border); color: var(--orange); }
+  .topic-badge.wildfire { background: var(--purple-bg); border: 1px solid var(--purple-border); color: var(--purple); }
+
+  .divider { height: 1px; background: var(--border); margin-bottom: 24px; }
+  .section-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 22px 26px; margin-bottom: 16px;
+    transition: box-shadow 0.15s, border-left-color 0.15s;
+  }
+  .section-card:hover { box-shadow: 0 4px 16px rgba(15,39,68,0.08); }
+  .section-card.flood    { border-left: 4px solid var(--sky); }
+  .section-card.wind     { border-left: 4px solid var(--orange); }
+  .section-card.wildfire { border-left: 4px solid var(--purple); }
+
+  .sec-ref {
+    display: inline-block; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px; margin-bottom: 8px;
+  }
+  .sec-ref.flood    { color: var(--sky);    background: #eff6ff; }
+  .sec-ref.wind     { color: var(--orange); background: var(--orange-bg); }
+  .sec-ref.wildfire { color: var(--purple); background: var(--purple-bg); }
+
+  .sec-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600; color: var(--navy); margin-bottom: 10px; line-height: 1.3; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center; }
+  .tag-chapter { font-size: 11px; background: #f0f4ff; color: #3730a3; border: 1px solid #c7d2fe; border-radius: 12px; padding: 3px 10px; font-family: 'JetBrains Mono', monospace; }
+  .tag-page { font-size: 11px; background: #f3f4f6; color: var(--muted); border: 1px solid #e5e7eb; border-radius: 12px; padding: 3px 10px; font-family: 'JetBrains Mono', monospace; text-decoration: none; }
+  .tag-page:hover { background: #eff6ff; color: var(--sky); border-color: #bfdbfe; }
+
+  .subtopic-tag {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 4px 12px; border-radius: 12px; margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .subtopic-tag.flood    { color: var(--sky);    background: #eff6ff; border: 1px solid #bfdbfe; }
+  .subtopic-tag.wind     { color: var(--orange); background: var(--orange-bg); border: 1px solid var(--orange-border); }
+  .subtopic-tag.wildfire { color: var(--purple); background: var(--purple-bg); border: 1px solid var(--purple-border); }
+
+  /* classification reason ("why") */
+  .why-tag {
+    margin-top: 12px; font-size: 12.5px; line-height: 1.6;
+    background: #f8fafc; border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 9px 13px; color: #475569; font-style: italic;
+  }
+  .why-tag b { font-style: normal; font-weight: 600; color: var(--navy); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+  .expander { margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .expander-toggle {
+    width: 100%; background: #f8fafc; border: none; padding: 10px 16px;
+    text-align: left; cursor: pointer; font-family: 'Source Serif 4', serif;
+    font-size: 13px; font-weight: 600; color: var(--sky);
+    display: flex; align-items: center; gap: 8px; transition: background 0.1s;
+  }
+  .expander-toggle:hover { background: #eff6ff; }
+  .expander-toggle .arrow { transition: transform 0.2s; font-size: 10px; color: var(--muted); }
+  .expander-toggle.open .arrow { transform: rotate(90deg); }
+  .expander-body { display: none; padding: 16px 18px; background: #f9fafb; border-top: 1px solid var(--border); }
+  .expander-body.open { display: block; }
+  .full-text { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.9; color: #374151; white-space: pre-line; word-wrap: break-word; }
+
+  /* structured subsections */
+  .sub-intro { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.85; color: #374151; margin-bottom: 12px; }
+  .sub-row { display: flex; gap: 8px; margin: 7px 0; font-size: 13px; line-height: 1.75; color: #374151; }
+  .sub-lbl { min-width: 26px; font-weight: 600; color: var(--navy); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+  .sub-txt { flex: 1; }
+
+  .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 40px; gap: 16px; color: var(--muted); }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--sky); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-bar { width: 200px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--sky), var(--accent)); border-radius: 2px; transition: width 0.3s; }
+  .progress-text { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+  .town-loading { display: flex; align-items: center; gap: 12px; padding: 40px; color: var(--muted); }
+  .small-spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--sky); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .no-sections { text-align: center; padding: 60px 40px; color: var(--muted); }
+  .no-sections .icon { font-size: 40px; margin-bottom: 12px; }
+  .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 16px 20px; border-radius: 8px; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  @media (max-width: 768px) {
+    .layout { flex-direction: column; }
+    aside { width: 100%; height: auto; position: static; }
+    main { padding: 20px; }
+    header { padding: 16px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wave">🌊</div>
+  <div>
+    <h1>NJ Ordinance Sub-Topic Viewer</h1>
+    <p>Prototype — flood, wind, and wildfire sub-topics</p>
+  </div>
+  <div class="header-badge" id="town-count">— towns</div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div>
+      <div class="field-label">Hazard</div>
+      <div class="topic-buttons">
+        <button class="topic-btn active-flood" onclick="onTopicChange('flood', this)">
+          <span class="topic-icon">🌊</span> Flood
+        </button>
+        <button class="topic-btn" onclick="onTopicChange('wind', this)">
+          <span class="topic-icon">💨</span> Wind
+        </button>
+        <button class="topic-btn" onclick="onTopicChange('wildfire', this)">
+          <span class="topic-icon">🔥</span> Wildfire
+        </button>
+      </div>
+    </div>
+    <div>
+      <div class="field-label">Sub-topic</div>
+      <select id="subtopic-select" onchange="onSubtopicChange()">
+        <option>All sub-topics</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-label">County</div>
+      <select id="county-select" onchange="onCountyChange()" disabled>
+        <option>Loading...</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-label">Town</div>
+      <select id="town-select" onchange="onTownChange()" disabled>
+        <option>Select county first</option>
+      </select>
+    </div>
+  </aside>
+
+  <main id="main-content">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress" style="width:0%"></div>
+      </div>
+      <div class="progress-text" id="progress-text">Loading index...</div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── CONFIG — replace with your prototype Drive folder values ──
+const API_KEY       = "";
+const FOLDER_ID     = "";
+const INDEX_FILE_ID = "";
+
+// ── Default town on startup ──
+const DEFAULT_COUNTY = "Cape May County";
+const DEFAULT_TOWN   = "Borough of Avalon";
+
+// ── Topic config (field names match the eCode360 classified JSON) ──
+const TOPIC_CONFIG = {
+  flood: {
+    field:  "flood_related",
+    reason: "classification_reason",   // NOTE: flood's reason is stored under this name
+    subtopic: "flood_subtopic",
+    label:  "flood-related",
+    icon:   "🌊",
+  },
+  wind: {
+    field:  "wind_related",
+    reason: "wind_reason",
+    subtopic: "wind_subtopic",
+    label:  "wind-related",
+    icon:   "💨",
+  },
+  wildfire: {
+    field:  "wildfire_related",
+    reason: "wildfire_reason",
+    subtopic: "wildfire_subtopic",
+    label:  "wildfire-related",
+    icon:   "🔥",
+  }
+};
+
+// ── Sub-topic lists (match the classifier taxonomy, incl. the 2 coastal flood cats) ──
+const SUBTOPICS = {
+  flood: [
+    "flood hazard area / floodplain",
+    "base flood elevation",
+    "floodway",
+    "stormwater & drainage",
+    "construction & building standards",
+    "permits & administration",
+    "dune & coastal protection",
+    "waterfront, vessel & mooring",
+    "other",
+  ],
+  wind: [
+    "wind load & structural resistance",
+    "hurricane / storm preparedness",
+    "wind energy systems",
+    "tree & vegetation management",
+    "signs & awnings",
+    "manufactured home anchoring",
+    "utility / pole maintenance",
+    "other",
+  ],
+  wildfire: [
+    "open burning",
+    "brush & vegetation clearance",
+    "defensible space",
+    "combustible material storage",
+    "fire access & lanes",
+    "fire hazard zones",
+    "land clearing",
+    "other",
+  ],
+};
+
+// ── State ──
+let countyTownMap = {};
+let fileIdMap     = {};
+let currentTopic    = "flood";
+let currentSubtopic = "All sub-topics";
+let currentData     = null;
+
+window.addEventListener("DOMContentLoaded", () => {
+  buildSubtopicDropdown();
+  loadIndex();
+});
+
+async function loadIndex() {
+  try {
+    setProgress(20, "Loading town index...");
+    const url  = `https://www.googleapis.com/drive/v3/files/${INDEX_FILE_ID}?alt=media&key=${API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+    const index = await resp.json();
+
+    setProgress(80, "Building directory...");
+
+    index.forEach(entry => {
+      const county = entry.county || "Unknown County";
+      const town   = entry.town   || entry.filename;
+      if (!countyTownMap[county]) countyTownMap[county] = [];
+      countyTownMap[county].push({ name: town, filename: entry.filename });
+    });
+
+    Object.keys(countyTownMap).forEach(c => {
+      countyTownMap[c].sort((a,b) => a.name.localeCompare(b.name));
+    });
+
+    const total = Object.values(countyTownMap).reduce((s,v) => s+v.length, 0);
+    document.getElementById("town-count").textContent = total + " towns";
+
+    setProgress(100, "Ready!");
+    buildDropdowns();
+
+  } catch(e) {
+    showError("Failed to load index: " + e.message);
+  }
+}
+
+async function ensureFileIds() {
+  if (Object.keys(fileIdMap).length > 0) return;
+  let files = [], pageToken = null;
+  do {
+    let url = `https://www.googleapis.com/drive/v3/files`
+            + `?q=%27${FOLDER_ID}%27+in+parents`
+            + `&fields=nextPageToken,files(id,name)`
+            + `&pageSize=1000&key=${API_KEY}`;
+    if (pageToken) url += `&pageToken=${pageToken}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Drive API ${resp.status}`);
+    const data = await resp.json();
+    files = files.concat(data.files || []);
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+  files.forEach(f => { fileIdMap[f.name] = f.id; });
+}
+
+function buildSubtopicDropdown() {
+  const sel = document.getElementById("subtopic-select");
+  const subs = SUBTOPICS[currentTopic];
+  sel.innerHTML = `<option>All sub-topics</option>` +
+    subs.map(s => `<option value="${s}">${s}</option>`).join("");
+  currentSubtopic = "All sub-topics";
+}
+
+function buildDropdowns() {
+  const countySelect = document.getElementById("county-select");
+  const counties     = Object.keys(countyTownMap).sort();
+  countySelect.innerHTML = "";
+  counties.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c; opt.textContent = c;
+    countySelect.appendChild(opt);
+  });
+  countySelect.disabled = false;
+
+  const idx = counties.indexOf(DEFAULT_COUNTY);
+  if (idx >= 0) countySelect.selectedIndex = idx;
+  onCountyChange(true);
+}
+
+function onCountyChange(initial=false) {
+  const county     = document.getElementById("county-select").value;
+  const towns      = countyTownMap[county] || [];
+  const townSelect = document.getElementById("town-select");
+  townSelect.innerHTML = "";
+  towns.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.filename; opt.textContent = t.name;
+    townSelect.appendChild(opt);
+  });
+  townSelect.disabled = false;
+  if (initial) {
+    const di = towns.findIndex(t => t.name === DEFAULT_TOWN);
+    if (di >= 0) townSelect.selectedIndex = di;
+  }
+  onTownChange();
+}
+
+async function onTownChange() {
+  const filename = document.getElementById("town-select").value;
+  if (!filename) return;
+  const main = document.getElementById("main-content");
+  main.innerHTML = `<div class="town-loading"><div class="small-spinner"></div> Loading...</div>`;
+  try {
+    await ensureFileIds();
+    const fileId = fileIdMap[filename];
+    if (!fileId) throw new Error(`File not found: ${filename}`);
+    const url  = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    currentData = await resp.json();
+    renderTown(currentData);
+  } catch(e) {
+    showError("Failed to load town: " + e.message);
+  }
+}
+
+function onTopicChange(topic, btn) {
+  currentTopic = topic;
+  document.querySelectorAll(".topic-btn").forEach(b => { b.className = "topic-btn"; });
+  btn.className = `topic-btn active-${topic}`;
+  buildSubtopicDropdown();
+  if (currentData) renderTown(currentData);
+}
+
+function onSubtopicChange() {
+  currentSubtopic = document.getElementById("subtopic-select").value;
+  if (currentData) renderTown(currentData);
+}
+
+// Render the subsection tree as structured, indented, labeled rows.
+function renderSubsections(nodes, depth) {
+  if (!nodes || !nodes.length) return "";
+  return nodes.map(n => {
+    const kids = renderSubsections(n.subsections, depth + 1);
+    return `<div class="sub-row" style="margin-left:${depth * 18}px">
+      <span class="sub-lbl">${esc(n.label || "")}.</span>
+      <span class="sub-txt">${esc(n.text || "")}${kids}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderTown(data) {
+  const cfg      = TOPIC_CONFIG[currentTopic];
+  const sections = data.sections || [];
+
+  let filtered = sections.filter(s =>
+    s[cfg.field] === true && !s.is_toc_entry && !s.is_reserved
+  );
+
+  // Sub-topic filter
+  if (currentSubtopic && currentSubtopic !== "All sub-topics") {
+    filtered = filtered.filter(s => s[cfg.subtopic] === currentSubtopic);
+  }
+
+  filtered.sort((a,b) => {
+    const am = (a.section_ref||"").match(/(\d+)-(\d+)/);
+    const bm = (b.section_ref||"").match(/(\d+)-(\d+)/);
+    if (!am||!bm) return 0;
+    return (parseInt(am[1])*10000+parseInt(am[2])) - (parseInt(bm[1])*10000+parseInt(bm[2]));
+  });
+
+  const main = document.getElementById("main-content");
+  const metaLine = `${esc(data.county)} · ${esc(data.town_code||"")} · ${(data.sections||[]).length} sections`;
+
+  if (!filtered.length) {
+    main.innerHTML = `
+      <h2 class="town-heading">${esc(data.town)}</h2>
+      <p class="town-meta">${metaLine}</p>
+      <div class="no-sections">
+        <div class="icon">${cfg.icon}</div>
+        <p>No ${cfg.label} sections${currentSubtopic!=="All sub-topics" ? " for sub-topic \"" + esc(currentSubtopic) + "\"" : ""} in this town — a coverage gap.</p>
+      </div>`;
+    return;
+  }
+
+  const subLabel = currentSubtopic === "All sub-topics" ? cfg.label : esc(currentSubtopic);
+
+  let html = `
+    <h2 class="town-heading">${esc(data.town)}</h2>
+    <p class="town-meta">${metaLine}</p>
+    <div class="topic-badge ${currentTopic}">${cfg.icon} ${filtered.length} ${subLabel} sections</div>
+    <div class="divider"></div>`;
+
+  filtered.forEach((sec, idx) => {
+    const uid      = `sec-${idx}`;
+    const reason   = sec[cfg.reason] || "";
+    const subtopic = sec[cfg.subtopic] || "other";
+    const subs     = sec.subsections || [];
+    const intro    = (sec.full_text || "").split("\n")[0];
+
+    const bodyInner = subs.length
+      ? `<div class="sub-intro">${esc(intro)}</div>${renderSubsections(subs, 0)}`
+      : `<div class="full-text">${esc(sec.full_text||"")}</div>`;
+
+    const srcLink = sec.source_url
+      ? `<a class="tag-page" href="${sec.source_url}" target="_blank" rel="noopener">eCode360 ↗</a>`
+      : "";
+
+    html += `
+    <div class="section-card ${currentTopic}">
+      <div><span class="sec-ref ${currentTopic}">${esc(sec.section_ref||"")}</span></div>
+      <div class="sec-title">${esc(sec.section_title||"")}</div>
+      <div class="tags">
+        <span class="tag-chapter">${esc((sec.chapter||"").split("(")[0].trim())}</span>
+        ${srcLink}
+      </div>
+      <span class="subtopic-tag ${currentTopic}">${esc(subtopic)}</span>
+      ${reason ? `<div class="why-tag"><b>Why classified here:</b> ${esc(reason)}</div>` : ""}
+      <div class="expander">
+        <button class="expander-toggle" onclick="toggleExpander('${uid}',this)">
+          <span class="arrow">▶</span> Read full text
+        </button>
+        <div class="expander-body" id="${uid}">
+          ${bodyInner}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  html += `<div style="height:32px"></div>`;
+  main.innerHTML = html;
+  main.scrollTop = 0;
+}
+
+function toggleExpander(uid, btn) {
+  const body = document.getElementById(uid);
+  const open = body.classList.toggle("open");
+  btn.classList.toggle("open", open);
+}
+
+function esc(str) {
+  return String(str||"")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function setProgress(pct, text) {
+  document.getElementById("progress").style.width      = pct + "%";
+  document.getElementById("progress-text").textContent = text;
+}
+
+function showError(msg) {
+  document.getElementById("main-content").innerHTML =
+    `<div style="padding:40px"><div class="error-msg">Error: ${msg}</div></div>`;
+}
+</script>
+</body>
+</html>
