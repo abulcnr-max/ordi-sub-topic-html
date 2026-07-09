@@ -171,42 +171,11 @@
   .expander-body.open { display: block; }
   .full-text { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.9; color: #374151; white-space: pre-line; word-wrap: break-word; }
 
-  /* structured subsections — nested tree with per-level rails */
-  .sub-intro { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.85; color: #374151; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); }
-  .sub-tree { display: flex; flex-direction: column; gap: 2px; }
-  .sub-row {
-    display: flex; gap: 10px; padding: 6px 0 6px 12px; font-size: 13px; line-height: 1.75; color: #374151;
-    border-left: 2px solid var(--border);
-  }
-  /* colour the nesting rail by hazard so depth reads clearly */
-  .flood    .sub-row { border-left-color: #bfdbfe; }
-  .wind     .sub-row { border-left-color: var(--orange-border); }
-  .wildfire .sub-row { border-left-color: var(--purple-border); }
-  .sub-row:hover { background: #f8fafc; }
-  .sub-lbl {
-    min-width: 30px; height: 22px; padding: 0 7px; flex-shrink: 0;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 600; font-size: 11px; font-family: 'JetBrains Mono', monospace;
-    color: var(--navy); background: #eef2f7; border-radius: 5px; align-self: flex-start;
-  }
-  .flood    .sub-lbl { background: #eff6ff; color: var(--sky); }
-  .wind     .sub-lbl { background: var(--orange-bg); color: var(--orange); }
-  .wildfire .sub-lbl { background: var(--purple-bg); color: var(--purple); }
-  .sub-txt { flex: 1; padding-top: 1px; }
-  .sub-ref-hint { margin-left: 8px; font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--muted); opacity: 0.6; }
-  .sub-children { width: 100%; margin-top: 4px; }
-
-  /* clickable section reference -> live eCode360 page */
-  a.sec-ref { text-decoration: none; cursor: pointer; transition: filter 0.1s; }
-  a.sec-ref:hover { filter: brightness(1.15); text-decoration: underline; }
-  .sec-ref .ext { font-size: 10px; opacity: 0.7; margin-left: 5px; }
-  .open-src {
-    display: inline-flex; align-items: center; gap: 5px; margin-top: 10px;
-    font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace;
-    color: var(--sky); text-decoration: none; padding: 5px 11px;
-    border: 1px solid #bfdbfe; border-radius: 7px; background: #eff6ff; transition: background 0.1s;
-  }
-  .open-src:hover { background: #dbeafe; }
+  /* structured subsections */
+  .sub-intro { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.85; color: #374151; margin-bottom: 12px; }
+  .sub-row { display: flex; gap: 8px; margin: 7px 0; font-size: 13px; line-height: 1.75; color: #374151; }
+  .sub-lbl { min-width: 26px; font-weight: 600; color: var(--navy); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+  .sub-txt { flex: 1; }
 
   .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 40px; gap: 16px; color: var(--muted); }
   .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--sky); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -288,12 +257,12 @@
 <script>
 // ── CONFIG — replace with your prototype Drive folder values ──
 const API_KEY       = "AIzaSyBm1J4AaKBSAtPE9YkIm32lHLj68wJ4WoM";
-const FOLDER_ID     = "1Jw5P_78o-o4iE-MQpQGZOAh3nQ6lbyTN";
-const INDEX_FILE_ID = "1zRcKJ9wraeDsqMQMy8P4UBSmY3zWpaRl";
+const FOLDER_ID     = "1V0MkQcY1Z4k0Eym-UQIGTL-1sLn5neYq";
+const INDEX_FILE_ID = "1z5sxiCTa7fKxl7shsesJOfAgTvLURdPj";
 
 // ── Default town on startup ──
-const DEFAULT_COUNTY = "Cape May County";
-const DEFAULT_TOWN   = "Borough of Avalon";
+const DEFAULT_COUNTY = "Atlantic County";
+const DEFAULT_TOWN   = "City of Brigantine";
 
 // ── Topic config (field names match the eCode360 classified JSON) ──
 const TOPIC_CONFIG = {
@@ -389,7 +358,7 @@ async function loadIndex() {
     });
 
     const total = Object.values(countyTownMap).reduce((s,v) => s+v.length, 0);
-    document.getElementById("town-count").textContent = total + " towns";
+    document.getElementById("town-count").textContent = "535 towns";
 
     setProgress(100, "Ready!");
     buildDropdowns();
@@ -491,22 +460,16 @@ function onSubtopicChange() {
   if (currentData) renderTown(currentData);
 }
 
-// Render the subsection tree as a nested, labeled, rail-indented structure.
-// Children are nested INSIDE their parent row (not just margin-shifted), so the
-// hierarchy is visually a real tree. Each row shows its label (a, b, 1, 2...) and,
-// when present, its sub-reference (e.g. 2-10.9a) as a subtle monospace hint.
+// Render the subsection tree as structured, indented, labeled rows.
 function renderSubsections(nodes, depth) {
   if (!nodes || !nodes.length) return "";
-  const rows = nodes.map(n => {
+  return nodes.map(n => {
     const kids = renderSubsections(n.subsections, depth + 1);
-    const childBlock = kids ? `<div class="sub-children">${kids}</div>` : "";
-    const refHint = n.ref ? `<span class="sub-ref-hint" title="sub-section reference">${esc(n.ref)}</span>` : "";
-    return `<div class="sub-row">
-      <span class="sub-lbl">${esc(n.label || "•")}</span>
-      <span class="sub-txt">${esc(n.text || "")}${refHint}${childBlock}</span>
+    return `<div class="sub-row" style="margin-left:${depth * 18}px">
+      <span class="sub-lbl">${esc(n.label || "")}.</span>
+      <span class="sub-txt">${esc(n.text || "")}${kids}</span>
     </div>`;
   }).join("");
-  return `<div class="sub-tree">${rows}</div>`;
 }
 
 function renderTown(data) {
@@ -557,41 +520,33 @@ function renderTown(data) {
     const subtopic = sec[cfg.subtopic] || "other";
     const subs     = sec.subsections || [];
     const intro    = (sec.full_text || "").split("\n")[0];
-    const url       = sec.source_url || "";
 
     const bodyInner = subs.length
       ? `<div class="sub-intro">${esc(intro)}</div>${renderSubsections(subs, 0)}`
       : `<div class="full-text">${esc(sec.full_text||"")}</div>`;
 
-    // Section reference: clickable link to the live eCode360 page when we have a URL.
-    const refText = esc(sec.section_ref||"");
-    const refHtml = url
-      ? `<a class="sec-ref ${currentTopic}" href="${esc(url)}" target="_blank" rel="noopener" title="Open this section on eCode360">${refText}<span class="ext">&#8599;</span></a>`
-      : `<span class="sec-ref ${currentTopic}">${refText}</span>`;
-
-    // A prominent "open on eCode360" button under the tags.
-    const openBtn = url
-      ? `<a class="open-src" href="${esc(url)}" target="_blank" rel="noopener">&#128279; Open on eCode360</a>`
+    const srcLink = sec.source_url
+      ? `<a class="tag-page" href="${sec.source_url}" target="_blank" rel="noopener">eCode360 ↗</a>`
       : "";
 
     html += `
     <div class="section-card ${currentTopic}">
-      <div>${refHtml}</div>
+      <div><span class="sec-ref ${currentTopic}">${esc(sec.section_ref||"")}</span></div>
       <div class="sec-title">${esc(sec.section_title||"")}</div>
       <div class="tags">
         <span class="tag-chapter">${esc((sec.chapter||"").split("(")[0].trim())}</span>
+        ${srcLink}
       </div>
       <span class="subtopic-tag ${currentTopic}">${esc(subtopic)}</span>
       ${reason ? `<div class="why-tag"><b>Why classified here:</b> ${esc(reason)}</div>` : ""}
       <div class="expander">
         <button class="expander-toggle" onclick="toggleExpander('${uid}',this)">
-          <span class="arrow">&#9654;</span> Read full text
+          <span class="arrow">▶</span> Read full text
         </button>
         <div class="expander-body" id="${uid}">
           ${bodyInner}
         </div>
       </div>
-      ${openBtn}
     </div>`;
   });
 
