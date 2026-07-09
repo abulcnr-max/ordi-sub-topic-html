@@ -171,6 +171,15 @@
   .expander-body.open { display: block; }
   .full-text { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.9; color: #374151; white-space: pre-line; word-wrap: break-word; }
 
+  /* prominent "Open on <platform>" button at the bottom of each card */
+  .source-btn {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 12px;
+    background: #eff6ff; color: var(--sky); border: 1px solid #dbeafe;
+    border-radius: 10px; padding: 9px 16px; font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; font-weight: 600; text-decoration: none; transition: background 0.12s, border-color 0.12s;
+  }
+  .source-btn:hover { background: #dbeafe; border-color: #bfdbfe; }
+
   /* structured subsections */
   .sub-intro { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.85; color: #374151; margin-bottom: 12px; }
   .sub-row { display: flex; gap: 8px; margin: 7px 0; font-size: 13px; line-height: 1.75; color: #374151; }
@@ -525,8 +534,17 @@ function renderTown(data) {
       ? `<div class="sub-intro">${esc(intro)}</div>${renderSubsections(subs, 0)}`
       : `<div class="full-text">${esc(sec.full_text||"")}</div>`;
 
-    const srcLink = sec.source_url
-      ? `<a class="tag-page" href="${sec.source_url}" target="_blank" rel="noopener">eCode360 ↗</a>`
+    // Platform-aware source link: label + URL reflect the town's actual platform,
+    // read from data.source (ecode360 / municode / municipalcodeonline / amlegal).
+    const SRC_LABEL = {
+      ecode360:            "eCode360",
+      municode:            "Municode",
+      municipalcodeonline: "MunicipalCodeOnline",
+      amlegal:             "American Legal",
+    };
+    const platLabel = SRC_LABEL[(data.source||"").toLowerCase()] || "source";
+    const srcButton = sec.source_url
+      ? `<a class="source-btn" href="${sec.source_url}" target="_blank" rel="noopener">🔗 Open on ${platLabel}</a>`
       : "";
 
     html += `
@@ -535,7 +553,6 @@ function renderTown(data) {
       <div class="sec-title">${esc(sec.section_title||"")}</div>
       <div class="tags">
         <span class="tag-chapter">${esc((sec.chapter||"").split("(")[0].trim())}</span>
-        ${srcLink}
       </div>
       <span class="subtopic-tag ${currentTopic}">${esc(subtopic)}</span>
       ${reason ? `<div class="why-tag"><b>Why classified here:</b> ${esc(reason)}</div>` : ""}
@@ -547,6 +564,7 @@ function renderTown(data) {
           ${bodyInner}
         </div>
       </div>
+      ${srcButton}
     </div>`;
   });
 
