@@ -82,11 +82,11 @@
   .layout::before {
     content: "";
     position: fixed;
-    right: 40px;                        /* positive, so the whole seal stays on screen */
+    left: 50%;
     top: 50%;
-    transform: translateY(-50%);
-    width: 640px;
-    height: 640px;
+    transform: translate(-50%, -50%);   /* centred behind the content */
+    width: 720px;
+    height: 720px;
     background-image: var(--logo);
     background-size: contain;
     background-position: center;
@@ -140,7 +140,7 @@
   .topic-btn.active-wildfire { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); font-weight: 600; }
   .topic-icon { font-size: 16px; }
 
-  main { flex: 1; padding: 32px 40px; overflow-y: auto; max-width: 900px; }
+  main { flex: 1; padding: 32px 48px; overflow-y: auto; max-width: 1250px; margin: 0 auto; }
   .town-heading { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
   .town-meta { font-size: 13px; color: var(--muted); margin-bottom: 8px; font-style: italic; }
 
