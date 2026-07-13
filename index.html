@@ -198,27 +198,74 @@
   .why-tag b { font-style: normal; font-weight: 600; color: var(--navy); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
 
   .expander { margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  /* SECONDARY action: neutral grey, so it reads as "expand this card" */
   .expander-toggle {
-    width: 100%; background: #f8fafc; border: none; padding: 10px 16px;
+    width: 100%; background: #eef1f6; border: none; padding: 10px 16px;
     text-align: left; cursor: pointer; font-family: 'Source Serif 4', serif;
-    font-size: 13px; font-weight: 600; color: var(--sky);
+    font-size: 13px; font-weight: 600; color: #475569;
     display: flex; align-items: center; gap: 8px; transition: background 0.1s;
   }
+  .expander-toggle:hover { background: #e2e8f0; }
   .expander-toggle:hover { background: #eff6ff; }
   .expander-toggle .arrow { transition: transform 0.2s; font-size: 10px; color: var(--muted); }
   .expander-toggle.open .arrow { transform: rotate(90deg); }
+  /* --- town search --- */
+  #town-search {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    font-family: 'Source Serif 4', Georgia, serif;
+    color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; outline: none;
+  }
+  #town-search:focus { border-color: var(--sky); background: #fff; }
+  .search-results {
+    margin-top: 6px; max-height: 260px; overflow-y: auto;
+    border-radius: 8px;
+  }
+  .search-results:not(:empty) { border: 1px solid var(--border); background: #fff; }
+  .search-hit {
+    padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--border);
+    font-size: 13.5px; color: var(--text);
+  }
+  .search-hit:last-child { border-bottom: none; }
+  .search-hit:hover { background: var(--bg); }
+  .search-hit .hit-county {
+    display: block; font-size: 11px; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace; margin-top: 2px;
+  }
+  .search-hit mark { background: #fde68a; color: inherit; padding: 0 1px; border-radius: 2px; }
+  .search-empty { padding: 10px 12px; font-size: 12.5px; color: var(--muted); font-style: italic; }
+
+  /* --- labelled rows on each card --- */
+  .card-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; flex-wrap: wrap; }
+  .row-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--muted);
+    min-width: 68px; flex-shrink: 0;
+  }
+
+  /* --- source button pinned to the right --- */
+  .card-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .card-footer .source-btn { margin-top: 0; }
+
   .expander-body { display: none; padding: 16px 18px; background: #f9fafb; border-top: 1px solid var(--border); }
   .expander-body.open { display: block; }
   .full-text { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.9; color: #374151; white-space: pre-line; word-wrap: break-word; }
 
   /* prominent "Open on <platform>" button at the bottom of each card */
+  /* PRIMARY action: solid blue, so it is unmistakably the "go to the official source" button */
   .source-btn {
     display: inline-flex; align-items: center; gap: 8px; margin-top: 12px;
-    background: #eff6ff; color: var(--sky); border: 1px solid #dbeafe;
-    border-radius: 10px; padding: 9px 16px; font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px; font-weight: 600; text-decoration: none; transition: background 0.12s, border-color 0.12s;
+    background: var(--sky); color: #fff; border: 1px solid var(--sky);
+    border-radius: 10px; padding: 9px 18px; font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; font-weight: 600; text-decoration: none;
+    box-shadow: 0 1px 3px rgba(15,39,68,0.18);
+    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
   }
-  .source-btn:hover { background: #dbeafe; border-color: #bfdbfe; }
+  .source-btn:hover {
+    background: var(--navy); border-color: var(--navy);
+    box-shadow: 0 2px 6px rgba(15,39,68,0.28);
+  }
 
   /* structured subsections */
   .sub-intro { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.85; color: #374151; margin-bottom: 12px; }
@@ -258,6 +305,12 @@
 
 <div class="layout">
   <aside>
+    <div>
+      <div class="field-label">Search town</div>
+      <input type="text" id="town-search" placeholder="e.g. Newark, Avalon…"
+             autocomplete="off" oninput="onTownSearch()">
+      <div class="search-results" id="search-results"></div>
+    </div>
     <div>
       <div class="field-label">Hazard</div>
       <div class="topic-buttons">
@@ -308,8 +361,6 @@
 const API_KEY       = "AIzaSyBm1J4AaKBSAtPE9YkIm32lHLj68wJ4WoM";
 const FOLDER_ID     = "1V0MkQcY1Z4k0Eym-UQIGTL-1sLn5neYq";
 const INDEX_FILE_ID = "1z5sxiCTa7fKxl7shsesJOfAgTvLURdPj";
-
-
 // ── Default town on startup ──
 const DEFAULT_COUNTY = "Cape May County";
 const DEFAULT_TOWN   = "Borough of Avalon";
@@ -376,6 +427,7 @@ const SUBTOPICS = {
 
 // ── State ──
 let countyTownMap = {};
+let allTowns      = [];   // flat list for the search box: {name, filename, county}
 let fileIdMap     = {};
 let currentTopic    = "flood";
 let currentSubtopic = "All sub-topics";
@@ -401,6 +453,7 @@ async function loadIndex() {
       const town   = entry.town   || entry.filename;
       if (!countyTownMap[county]) countyTownMap[county] = [];
       countyTownMap[county].push({ name: town, filename: entry.filename });
+      allTowns.push({ name: town, filename: entry.filename, county: county });
     });
 
     Object.keys(countyTownMap).forEach(c => {
@@ -436,11 +489,67 @@ async function ensureFileIds() {
   files.forEach(f => { fileIdMap[f.name] = f.id; });
 }
 
+// Pretty-print a sub-topic for DISPLAY only. The raw lowercase value is what the
+// data stores and what we filter on, so we never change the value itself.
+function fmtSub(s) {
+  if (!s) return "";
+  if (s === "All sub-topics") return s;
+  return s.split(" ")
+          .map(w => (w === "&" || w === "/") ? w : w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+}
+
+// ── Town search: type any part of a name, across every county ──
+function onTownSearch() {
+  const q   = document.getElementById("town-search").value.trim().toLowerCase();
+  const box = document.getElementById("search-results");
+  if (q.length < 2) { box.innerHTML = ""; return; }
+
+  const hits = allTowns
+    .filter(t => t.name.toLowerCase().includes(q))
+    .sort((a, b) => {
+      // names that START with the query rank first (typing "newark" -> "Newark" before "East Newark")
+      const as = a.name.toLowerCase().indexOf(q), bs = b.name.toLowerCase().indexOf(q);
+      return as - bs || a.name.localeCompare(b.name);
+    })
+    .slice(0, 12);
+
+  if (!hits.length) { box.innerHTML = `<div class="search-empty">No town matches “${esc(q)}”.</div>`; return; }
+
+  box.innerHTML = hits.map(t => {
+    const i    = t.name.toLowerCase().indexOf(q);
+    const name = esc(t.name.slice(0, i)) + "<mark>" + esc(t.name.slice(i, i + q.length)) + "</mark>" + esc(t.name.slice(i + q.length));
+    return `<div class="search-hit" onclick="pickTown('${esc(t.county).replace(/'/g, "\\'")}','${esc(t.filename).replace(/'/g, "\\'")}')">
+              ${name}<span class="hit-county">${esc(t.county)}</span>
+            </div>`;
+  }).join("");
+}
+
+// Jump straight to a town from the search results: sync both dropdowns, then load.
+function pickTown(county, filename) {
+  document.getElementById("county-select").value = county;
+
+  const towns      = countyTownMap[county] || [];
+  const townSelect = document.getElementById("town-select");
+  townSelect.innerHTML = "";
+  towns.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.filename; opt.textContent = t.name;
+    townSelect.appendChild(opt);
+  });
+  townSelect.disabled = false;
+  townSelect.value = filename;
+
+  document.getElementById("town-search").value = "";
+  document.getElementById("search-results").innerHTML = "";
+  onTownChange();
+}
+
 function buildSubtopicDropdown() {
   const sel = document.getElementById("subtopic-select");
   const subs = SUBTOPICS[currentTopic];
   sel.innerHTML = `<option>All sub-topics</option>` +
-    subs.map(s => `<option value="${s}">${s}</option>`).join("");
+    subs.map(s => `<option value="${s}">${fmtSub(s)}</option>`).join("");
   currentSubtopic = "All sub-topics";
 }
 
@@ -551,12 +660,12 @@ function renderTown(data) {
       <p class="town-meta">${metaLine}</p>
       <div class="no-sections">
         <div class="icon">${cfg.icon}</div>
-        <p>No ${cfg.label} sections${currentSubtopic!=="All sub-topics" ? " for sub-topic \"" + esc(currentSubtopic) + "\"" : ""} in this town — a coverage gap.</p>
+        <p>No ${cfg.label} sections${currentSubtopic!=="All sub-topics" ? " for sub-topic \"" + esc(fmtSub(currentSubtopic)) + "\"" : ""} in this town — a coverage gap.</p>
       </div>`;
     return;
   }
 
-  const subLabel = currentSubtopic === "All sub-topics" ? cfg.label : esc(currentSubtopic);
+  const subLabel = currentSubtopic === "All sub-topics" ? cfg.label : esc(fmtSub(currentSubtopic));
 
   let html = `
     <h2 class="town-heading">${esc(data.town)}</h2>
@@ -590,12 +699,19 @@ function renderTown(data) {
 
     html += `
     <div class="section-card ${currentTopic}">
-      <div><span class="sec-ref ${currentTopic}">${esc(sec.section_ref||"")}</span></div>
+      <div class="card-row">
+        <span class="row-label">Section</span>
+        <span class="sec-ref ${currentTopic}">${esc(sec.section_ref||"")}</span>
+      </div>
       <div class="sec-title">${esc(sec.section_title||"")}</div>
-      <div class="tags">
+      <div class="card-row">
+        <span class="row-label">Chapter</span>
         <span class="tag-chapter">${esc((sec.chapter||"").split("(")[0].trim())}</span>
       </div>
-      <span class="subtopic-tag ${currentTopic}">${esc(subtopic)}</span>
+      <div class="card-row">
+        <span class="row-label">Sub-topic</span>
+        <span class="subtopic-tag ${currentTopic}">${esc(fmtSub(subtopic))}</span>
+      </div>
       ${reason ? `<div class="why-tag"><b>Why classified here:</b> ${esc(reason)}</div>` : ""}
       <div class="expander">
         <button class="expander-toggle" onclick="toggleExpander('${uid}',this)">
@@ -605,7 +721,7 @@ function renderTown(data) {
           ${bodyInner}
         </div>
       </div>
-      ${srcButton}
+      <div class="card-footer">${srcButton}</div>
     </div>`;
   });
 
