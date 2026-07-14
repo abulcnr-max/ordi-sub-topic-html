@@ -380,9 +380,10 @@
 
 <script>
 // ── CONFIG — replace with your prototype Drive folder values ──
-const API_KEY = "AIzaSyBm1J4AaKBSAtPE9YkIm32lHLj68wJ4WoM"; 
-const FOLDER_ID = "1V0MkQcY1Z4k0Eym-UQIGTL-1sLn5neYq"; 
+const API_KEY       = "AIzaSyBm1J4AaKBSAtPE9YkIm32lHLj68wJ4WoM";
+const FOLDER_ID     = "1V0MkQcY1Z4k0Eym-UQIGTL-1sLn5neYq";
 const INDEX_FILE_ID = "1YDxHURCIIHEha97DjoIykMPhwbHQ2whr";
+
 // ── Default town on startup ──
 const DEFAULT_COUNTY = "Cape May County";
 const DEFAULT_TOWN   = "Borough of Avalon";
@@ -663,12 +664,40 @@ function onSubtopicChange() {
 }
 
 // Render the subsection tree as structured, indented, labeled rows.
+// The first line of full_text means DIFFERENT things on different platforms, so it can
+// only be shown as a section intro when it is genuinely intro text:
+//
+//   eCode360  full_text = intro + each sub-part. The intro (e.g. the ordinance-history
+//             line "[2000 Code § 2:2-1; amended ...]") lives ONLY here, never in the
+//             subsections tree -> it MUST be shown or it is lost.
+//   Municode  full_text starts with the bare marker on its own line ("A." / "(a)" / "(1)").
+//             The tree already holds everything -> showing it printed a stray ghost label.
+//
+// So: skip a line that is only a bare marker, and skip a line that is just the first
+// sub-part repeated. Show anything else.
+function sectionIntro(sec, subs) {
+  const first = ((sec.full_text || "").split("\n")[0] || "").trim();
+  if (!first || !subs.length) return "";
+
+  const lbl = (subs[0].label || "").trim();
+  if (!lbl) return "";                                        // unlabelled preamble: already in the tree
+
+  // bare marker line?  "A." -> "A" ,  "(a)" -> "a" ,  "(1)" -> "1"
+  if (first.replace(/[()\.\s]/g, "") === lbl) return "";
+
+  // the first sub-part simply repeated? (eCode360 sections that have no real intro)
+  const dup = (lbl + " " + (subs[0].text || "")).replace(/\s+/g, " ").trim();
+  if (first.replace(/\s+/g, " ") === dup) return "";
+
+  return first;                                               // a genuine section intro
+}
+
 function renderSubsections(nodes, depth) {
   if (!nodes || !nodes.length) return "";
   return nodes.map(n => {
     const kids = renderSubsections(n.subsections, depth + 1);
     return `<div class="sub-row" style="margin-left:${depth * 18}px">
-      <span class="sub-lbl">${esc(n.label || "")}.</span>
+      <span class="sub-lbl">${n.label ? esc(n.label) + "." : ""}</span>
       <span class="sub-txt">${esc(n.text || "")}${kids}</span>
     </div>`;
   }).join("");
@@ -720,11 +749,14 @@ function renderTown(data) {
     const uid      = `sec-${idx}`;
     const reason   = sec[cfg.reason] || "";
     const subtopic = sec[cfg.subtopic] || "other";
-    const subs     = sec.subsections || [];
-    const intro    = (sec.full_text || "").split("\n")[0];
+    const subs = sec.subsections || [];
 
     const bodyInner = subs.length
-      ? `<div class="sub-intro">${esc(intro)}</div>${renderSubsections(subs, 0)}`
+      ? (() => {
+          const intro = sectionIntro(sec, subs);
+          return (intro ? `<div class="sub-intro">${esc(intro)}</div>` : "")
+                 + renderSubsections(subs, 0);
+        })()
       : `<div class="full-text">${esc(sec.full_text||"")}</div>`;
 
     // Platform-aware source link: label + URL reflect the town's actual platform,
