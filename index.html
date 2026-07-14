@@ -272,6 +272,15 @@
     background: #f9fafb; border: 1px solid var(--border); border-radius: 9px;
   }
   .expander-body.open { display: block; }
+  /* definitions: eCode360 flattens the defined TERM and its definition into one
+     paragraph, so we re-break them for readability. Purely presentational. */
+  .def-preamble { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.85;
+    color: #374151; margin-bottom: 14px; }
+  .def-row { margin-bottom: 12px; }
+  .def-term { display: block; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    font-weight: 700; letter-spacing: 0.03em; color: var(--navy); margin-bottom: 3px; }
+  .def-body { display: block; font-family: 'Source Serif 4', serif; font-size: 13px;
+    line-height: 1.85; color: #374151; padding-left: 14px; border-left: 2px solid var(--border); }
   .full-text { font-family: 'Source Serif 4', serif; font-size: 13px; line-height: 1.9; color: #374151; white-space: pre-line; word-wrap: break-word; }
 
   /* prominent "Open on <platform>" button at the bottom of each card */
@@ -383,6 +392,7 @@
 const API_KEY       = "AIzaSyBm1J4AaKBSAtPE9YkIm32lHLj68wJ4WoM";
 const FOLDER_ID     = "1V0MkQcY1Z4k0Eym-UQIGTL-1sLn5neYq";
 const INDEX_FILE_ID = "1YDxHURCIIHEha97DjoIykMPhwbHQ2whr";
+
 // ── Default town on startup ──
 const DEFAULT_COUNTY = "Cape May County";
 const DEFAULT_TOWN   = "Borough of Avalon";
@@ -674,6 +684,47 @@ function onSubtopicChange() {
 //
 // So: skip a line that is only a bare marker, and skip a line that is just the first
 // sub-part repeated. Show anything else.
+// eCode360 stores a definitions section as ONE flat paragraph: the defined term
+// (ALL CAPS) runs straight into its definition, losing the line breaks the source shows.
+// Nothing is lost, but it reads badly — so re-break it for display only.
+//
+// GATED to sections that really are definitions, because the same pattern would mangle
+// ordinary prose. A term = one or more consecutive ALL-CAPS words (each >=2 chars, so the
+// article "A" that opens a definition is not swallowed), starting the list or following a
+// sentence end. Acronyms inside a definition body (NJPDES permit, N.J.A.C. 7:14A) sit
+// mid-sentence and are therefore never matched.
+const _CAPW = "[A-Z0-9(][A-Z0-9&\\-/'\u2019().,]+";
+const _DEF_TERM = new RegExp("(^|[.;:]\\s+)((?:" + _CAPW + "\\s+)*" + _CAPW + ")\\s+(?=[A-Z])", "g");
+
+function renderDefinitions(sec) {
+  const title = (sec.section_title || "").toLowerCase();
+  if (!/definition|word usage/.test(title)) return null;      // gate: only real definitions
+  const text = sec.full_text || "";
+  if (!text) return null;
+
+  const parts = [];
+  let last = 0, m;
+  _DEF_TERM.lastIndex = 0;
+  while ((m = _DEF_TERM.exec(text)) !== null) {
+    const ts = m.index + (m[1] ? m[1].length : 0);
+    if (!parts.length) { const pre = text.slice(0, ts).trim(); if (pre) parts.push({ preamble: pre }); }
+    else parts[parts.length - 1].body = text.slice(last, ts).trim();
+    parts.push({ term: m[2].trim() });
+    last = m.index + m[0].length;
+  }
+  if (parts.length && parts[parts.length - 1].term !== undefined)
+    parts[parts.length - 1].body = text.slice(last).trim();
+
+  const terms = parts.filter(p => p.term);
+  if (terms.length < 2) return null;                          // not worth re-formatting
+
+  return parts.map(p => p.preamble
+    ? `<div class="def-preamble">${esc(p.preamble)}</div>`
+    : `<div class="def-row"><span class="def-term">${esc(p.term)}</span>` +
+      `<span class="def-body">${esc(p.body || "")}</span></div>`
+  ).join("");
+}
+
 function sectionIntro(sec, subs) {
   const first = ((sec.full_text || "").split("\n")[0] || "").trim();
   if (!first || !subs.length) return "";
@@ -756,7 +807,7 @@ function renderTown(data) {
           return (intro ? `<div class="sub-intro">${esc(intro)}</div>` : "")
                  + renderSubsections(subs, 0);
         })()
-      : `<div class="full-text">${esc(sec.full_text||"")}</div>`;
+      : (renderDefinitions(sec) || `<div class="full-text">${esc(sec.full_text||"")}</div>`);
 
     // Platform-aware source link: label + URL reflect the town's actual platform,
     // read from data.source (ecode360 / municode / municipalcodeonline / amlegal).
