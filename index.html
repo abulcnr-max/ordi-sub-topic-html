@@ -694,35 +694,56 @@ function onSubtopicChange() {
 // sentence end. Acronyms inside a definition body (NJPDES permit, N.J.A.C. 7:14A) sit
 // mid-sentence and are therefore never matched.
 const _CAPW = "[A-Z0-9(][A-Z0-9&\\-/'\u2019().,]+";
-const _DEF_TERM = new RegExp("(^|[.;:]\\s+)((?:" + _CAPW + "\\s+)*" + _CAPW + ")\\s+(?=[A-Z])", "g");
+// A defined term is recognised by EITHER of two independent signals:
+//   A. anchored  — an ALL-CAPS run at the start of the list or right after a sentence
+//                  end, followed by a capital.        PERSON Any individual...
+//   B. verb      — an ALL-CAPS run followed by a definition verb. Needs no sentence
+//                  anchor, which is essential because some towns run one definition
+//                  straight into the next with no full stop:
+//                  "...the Townsends Inlet Bridge DIVE shall mean the act of plunging..."
+// Both REQUIRE the term to be ALL CAPS, which is what keeps ordinary prose safe:
+// "The Council shall mean to review..." cannot match, because "Council" is not all-caps.
+const _DEF_VERB = "(?:shall\\s+mean|shall\\s+be\\s+(?:defined|deemed|construed)|means\\b|is\\s+defined\\s+as|refers\\s+to)";
+const _DEF_ANCHORED = new RegExp("(^|[.;:]\\s+)((?:" + _CAPW + "\\s+)*" + _CAPW + ")\\s+(?=[A-Z])", "g");
+const _DEF_BYVERB   = new RegExp("(^|[\\s])((?:" + _CAPW + "\\s+)*" + _CAPW + ")\\s+(?=" + _DEF_VERB + ")", "g");
 
+function _findDefTerms(text) {
+  const hits = [];
+  for (const re of [_DEF_ANCHORED, _DEF_BYVERB]) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const start = m.index + (m[1] ? m[1].length : 0);
+      hits.push({ start: start, end: start + m[2].length, term: m[2].trim() });
+    }
+  }
+  hits.sort((a, b) => a.start - b.start);
+  const out = [];                                   // drop overlaps: keep the first
+  for (const h of hits) if (!out.length || h.start >= out[out.length - 1].end) out.push(h);
+  return out;
+}
+
+// eCode360 flattens a definitions section into ONE paragraph, losing the line breaks the
+// source shows. No text is lost — only the structure — so we rebuild it for DISPLAY only.
+// GATED to real definitions sections; every other section renders exactly as before.
 function renderDefinitions(sec) {
   const title = (sec.section_title || "").toLowerCase();
-  if (!/definition|word usage/.test(title)) return null;      // gate: only real definitions
+  if (!/definition|word usage/.test(title)) return null;     // gate 1: title
   const text = sec.full_text || "";
   if (!text) return null;
 
-  const parts = [];
-  let last = 0, m;
-  _DEF_TERM.lastIndex = 0;
-  while ((m = _DEF_TERM.exec(text)) !== null) {
-    const ts = m.index + (m[1] ? m[1].length : 0);
-    if (!parts.length) { const pre = text.slice(0, ts).trim(); if (pre) parts.push({ preamble: pre }); }
-    else parts[parts.length - 1].body = text.slice(last, ts).trim();
-    parts.push({ term: m[2].trim() });
-    last = m.index + m[0].length;
+  const hits = _findDefTerms(text);
+  if (hits.length < 2) return null;                          // gate 2: a list needs >=2 terms
+
+  let out = "";
+  const pre = text.slice(0, hits[0].start).trim();
+  if (pre) out += `<div class="def-preamble">${esc(pre)}</div>`;
+  for (let i = 0; i < hits.length; i++) {
+    const body = text.slice(hits[i].end, i + 1 < hits.length ? hits[i + 1].start : text.length).trim();
+    out += `<div class="def-row"><span class="def-term">${esc(hits[i].term)}</span>` +
+           `<span class="def-body">${esc(body)}</span></div>`;
   }
-  if (parts.length && parts[parts.length - 1].term !== undefined)
-    parts[parts.length - 1].body = text.slice(last).trim();
-
-  const terms = parts.filter(p => p.term);
-  if (terms.length < 2) return null;                          // not worth re-formatting
-
-  return parts.map(p => p.preamble
-    ? `<div class="def-preamble">${esc(p.preamble)}</div>`
-    : `<div class="def-row"><span class="def-term">${esc(p.term)}</span>` +
-      `<span class="def-body">${esc(p.body || "")}</span></div>`
-  ).join("");
+  return out;
 }
 
 function sectionIntro(sec, subs) {
